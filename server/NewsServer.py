@@ -120,9 +120,6 @@ class NewsServer:
             session.send("OK " + (", ".join(current) or "(nenhuma assinatura)"))
 
         elif command == "PUBLICAR":
-            if not session.is_editor:
-                session.send("ERRO apenas editores podem publicar (use EDITOR <senha>)")
-                return True
             parts = [self._clean(p) for p in rest.split("|")]
             if len(parts) != 3 or not all(parts):
                 session.send("ERRO uso: PUBLICAR categoria|titulo|resumo")
