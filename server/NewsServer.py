@@ -1,5 +1,8 @@
 import threading
 import socket
+import argparse
+
+CATEGORIES = ["tecnologia", "esportes", "cultura"]
 
 class ClienteSessao:
     """Criando agora um objeto de sessão para cada cliente que se conecta ao servidor"""
@@ -85,4 +88,67 @@ class NewsServer:
     def _clean(text):
         return text.replace("|", "/").replace("\n", " ").replace("\r", " ").strip()
 
-    
+    def process_command(self, session, line):
+        """Retorna False quando a sessao deve ser encerrada."""
+        command, _, rest = line.partition(" ")
+        command = command.upper()
+
+        if command == "INSCREVER":
+            cats = self._parse_categories(rest)
+            if not cats:
+                session.send("ERRO uso: INSCREVER <categoria>[, <categoria>...]")
+                return True
+            valid, invalid = self.engine.subscribe(session, cats)
+            msg = "OK inscrito em: " + (", ".join(valid) or "(nenhuma)")
+            if invalid:
+                msg += " | categorias inexistentes: " + ", ".join(invalid)
+            session.send(msg)
+
+        elif command == "REMOVER":
+            cats = self._parse_categories(rest)
+            if not cats:
+                session.send("ERRO uso: REMOVER <categoria>[, <categoria>...]")
+                return True
+            removed = self.engine.unsubscribe(session, cats)
+            session.send("OK removido: " + (", ".join(removed) or "(nenhuma)"))
+
+        elif command == "CATEGORIAS":
+            session.send("OK " + ", ".join(CATEGORIES))
+
+        elif command == "MINHAS":
+            current = self.engine.subscriptions_of(session)
+            session.send("OK " + (", ".join(current) or "(nenhuma assinatura)"))
+
+        elif command == "PUBLICAR":
+            if not session.is_editor:
+                session.send("ERRO apenas editores podem publicar (use EDITOR <senha>)")
+                return True
+            parts = [self._clean(p) for p in rest.split("|")]
+            if len(parts) != 3 or not all(parts):
+                session.send("ERRO uso: PUBLICAR categoria|titulo|resumo")
+                return True
+            category, title, summary = parts
+            category = category.lower()
+            if category not in CATEGORIES:
+                session.send("ERRO categoria inexistente. Disponiveis: " + ", ".join(CATEGORIES))
+                return True
+            delivered = self.engine.publish(category, title, summary)
+            session.send(f"OK publicada para {delivered} assinante(s)")
+
+        elif command == "SAIR":
+            session.send("OK ate logo")
+            return False
+
+        else:
+            session.send("ERRO comando desconhecido")
+        return True
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Servidor de feed de noticias PUB/SUB (TCP)")
+    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--port", type=int, default=5000)
+    parser.add_argument("--arquivo", default="noticias.jsonl")
+    args = parser.parse_args()
+
+    NewsServer(args.host, args.port, args.arquivo).start()
