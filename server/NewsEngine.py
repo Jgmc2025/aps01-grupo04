@@ -1,4 +1,6 @@
 import threading
+from time import time
+import json
 
 from server.NewsServer import CATEGORIES
 
@@ -35,3 +37,31 @@ class NewsEngine:
     def assinaturas_da_sessao(self, session):
         with self.lock:
             return sorted(session.subscriptions)
+
+    def publicar(self, categoria, title, summary):
+        """Grava a noticia e envia para quem assinou a categoria.
+
+        Retorna a quantidade de clientes que receberam.
+        """
+        record = {
+            "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "categoria": categoria,
+            "titulo": title,
+            "resumo": summary,
+        }
+        with self.lock_armazenamento:
+            with open(self.armazenamento, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            self.total_news += 1
+
+        # copia dos destinatarios sob lock, o envio acontece fora dele
+        with self.lock:
+            targets = [s for s in self.sessions if categoria in s.subscriptions]
+
+        message = f"NOTICIA|{categoria}|{title}|{summary}"
+        delivered = 0
+        for s in targets:
+            if s.send(message):
+                delivered += 1
+        print(f"[NewsEngine] [{categoria}] {title} -> {delivered} cliente(s)", flush=True)
+        return delivered
