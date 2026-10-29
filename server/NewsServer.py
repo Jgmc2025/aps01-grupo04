@@ -2,6 +2,8 @@ import threading
 import socket
 import argparse
 
+from server.NewsEngine import NewsEngine
+
 CATEGORIES = ["tecnologia", "esportes", "cultura"]
 
 class ClienteSessao:
