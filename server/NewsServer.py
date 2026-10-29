@@ -10,8 +10,14 @@ class SessaoCliente:
 
     def send(self, message): # Função de envio de mensagens para o cliente
         try:
-            with self._send_lock:
-                self.sock.sendall((message + "\n").encode("utf-8"))
+            with self.enviarlock:
+                self.socket.sendall((message + "\n").encode("utf-8"))
             return True
         except OSError:
             return False
+
+    def close(self): # Função para fechar a conexão com o cliente
+        try:
+            self.socket.close()
+        except OSError:
+            pass
