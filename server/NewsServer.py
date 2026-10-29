@@ -1,6 +1,7 @@
 import threading
+import socket
 
-class SessaoCliente:
+class ClienteSessao:
     """Criando agora um objeto de sessão para cada cliente que se conecta ao servidor"""
     def __init__(self, socket, enderco):
         self.socket = socket
@@ -21,3 +22,40 @@ class SessaoCliente:
             self.socket.close()
         except OSError:
             pass
+
+class NewsServer:
+    def __init__(self, host="0.0.0.0", port=5000,
+                 armazenamento="noticias.jsonl"):
+        self.host = host
+        self.port = port
+        self.engine = NewsEngine(armazenamento)
+        self.servidor_socket = None
+
+
+    def start(self):
+        self.servidor_socket = socket.socket(socket.AF_INET, socket.SOCK_TCP)
+        self.servidor_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.servidor_socket.bind((self.host, self.port))
+        self.servidor_socket.listen()
+        print(f"[NewsServer] Ouvindo em {self.host}:{self.port} "
+              f"({self.engine.total_news} noticias no historico)", flush=True)
+
+        try:
+            while True:
+                sock, addr = self.servidor_socket.accept()
+                session = ClienteSessao(sock, addr)
+                self.engine.register_session(session)
+                threading.Thread(target=self.handle_client,
+                                 args=(session,), daemon=True).start()
+        except KeyboardInterrupt:
+            print("\n[NewsServer] Encerrando...")
+        finally:
+            self.stop()
+
+    def stop(self):
+        if self.servidor_socket:
+            self.servidor_socket.close()
+            self.servidor_socket = None
+        print("[NewsServer] Servidor parado.")
+    
+        
