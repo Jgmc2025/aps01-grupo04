@@ -43,10 +43,10 @@ class NewsServer:
         try:
             while True:
                 sock, addr = self.servidor_socket.accept()
-                session = ClienteSessao(sock, addr)
-                self.engine.register_session(session)
+                sessao = ClienteSessao(sock, addr)
+                self.engine.register_sessao(sessao)
                 threading.Thread(target=self.handle_client,
-                                 args=(session,), daemon=True).start()
+                                 args=(sessao,), daemon=True).start()
         except KeyboardInterrupt:
             print("\n[NewsServer] Encerrando...")
         finally:
@@ -57,5 +57,24 @@ class NewsServer:
             self.servidor_socket.close()
             self.servidor_socket = None
         print("[NewsServer] Servidor parado.")
+
+    def handle_client(self, sessao):
+        print(f"[NewsServer] Cliente conectado: {sessao.addr}", flush=True)
+        try:
+            sessao.send("INFO Bem-vindo! Categorias: " + ", ".join(CATEGORIES)
+                         + ". Use INSCREVER <categoria>.")
+            with sessao.socket.makefile("r", encoding="utf-8", newline="\n") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    if not self.process_command(sessao, line):
+                        break
+        except (OSError, UnicodeDecodeError):
+            pass
+        finally:
+            self.engine.nao_registrar_sessao(sessao)
+            sessao.close()
+            print(f"[NewsServer] Cliente desconectado: {sessao.addr}", flush=True)
     
         
