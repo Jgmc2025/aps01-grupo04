@@ -65,3 +65,10 @@ class NewsEngine:
                 delivered += 1
         print(f"[NewsEngine] [{categoria}] {title} -> {delivered} cliente(s)", flush=True)
         return delivered
+    
+    def _count_existing(self): # Conta quantas noticias existem no arquivo de armazenamento
+        try:
+            with open(self.armazenamento, "r", encoding="utf-8") as f:
+                return sum(1 for _ in f)
+        except FileNotFoundError:
+            return 0
