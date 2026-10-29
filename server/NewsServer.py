@@ -77,4 +77,12 @@ class NewsServer:
             sessao.close()
             print(f"[NewsServer] Cliente desconectado: {sessao.addr}", flush=True)
     
-        
+    @staticmethod
+    def _parse_categories(text):
+        return [c.strip().lower() for c in text.replace(",", " ").split() if c.strip()]
+
+    @staticmethod
+    def _clean(text):
+        return text.replace("|", "/").replace("\n", " ").replace("\r", " ").strip()
+
+    
