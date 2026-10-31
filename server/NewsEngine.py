@@ -1,8 +1,8 @@
 import threading
-from time import time
+import time
 import json
 
-from server.NewsServer import CATEGORIES
+CATEGORIES = ["tecnologia", "esportes", "cultura"]
 
 class NewsEngine:
     def __init__(self, armazenamento="noticias.jsonl"):

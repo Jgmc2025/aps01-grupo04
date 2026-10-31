@@ -2,9 +2,7 @@ import threading
 import socket
 import argparse
 
-from server.NewsEngine import NewsEngine
-
-CATEGORIES = ["tecnologia", "esportes", "cultura"]
+from server.NewsEngine import NewsEngine, CATEGORIES
 
 class ClienteSessao:
     """Criando agora um objeto de sessão para cada cliente que se conecta ao servidor"""
