@@ -10,6 +10,7 @@ class ClienteSessao:
         self.socket = socket
         self.addr = enderco
         self.subscriptions = set()  # categorias assinadas por este cliente
+        self.thread = None   #  thread que atende somente este cliente
         self.enviarlock = threading.Lock()
 
     def send(self, message): # Função de envio de mensagens para o cliente
@@ -47,9 +48,11 @@ class NewsServer:
             while True:
                 sock, addr = self.servidor_socket.accept()
                 sessao = ClienteSessao(sock, addr)
-                self.engine.registrar_sessao(sessao)
-                threading.Thread(target=self.handle_client,
-                                 args=(sessao,), daemon=True).start()
+                # uma thread dedicada para cada cliente conectado
+                thread = threading.Thread(target=self.handle_client, args=(sessao,),
+                                          daemon=True, name=f"cliente-{addr[0]}:{addr[1]}")
+                sessao.thread = thread
+                thread.start()
         except KeyboardInterrupt:
             print("\n[NewsServer] Encerrando...")
         finally:
@@ -62,7 +65,10 @@ class NewsServer:
         print("[NewsServer] Servidor parado.")
 
     def handle_client(self, sessao):
-        print(f"[NewsServer] Cliente conectado: {sessao.addr}", flush=True)
+        self.engine.registrar_sessao(sessao)
+        print(f"[NewsServer] Cliente conectado: {sessao.addr} "
+              f"| thread: {threading.current_thread().name} "
+              f"(id={threading.get_ident()})", flush=True)
         try:
             sessao.send("INFO Bem-vindo! Categorias: " + ", ".join(self.engine.listar_categorias())
                          + ". Use INSCREVER <categoria>.")

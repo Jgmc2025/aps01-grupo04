@@ -27,6 +27,10 @@ class NewsEngine:
             if session in self.sessions:
                 self.sessions.remove(session)
 
+    def listar_sessoes(self):
+        with self.lock:
+            return list(self.sessions)
+
     def listar_categorias(self):
         with self.lock:
             return list(self.categorias)
