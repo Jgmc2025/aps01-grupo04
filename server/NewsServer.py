@@ -112,6 +112,17 @@ class NewsServer:
             removed = self.engine.nao_assinar(session, cats)
             session.send("OK cancelado: " + (", ".join(removed) or "(nenhuma)"))
 
+        elif command == "REMOVER":
+            cats = self._parse_categories(rest)
+            if not cats:
+                session.send("ERRO uso: REMOVER <categoria>[, <categoria>...]")
+                return True
+            removidas, inexistentes = self.engine.remover_categorias(cats)
+            msg = "OK categoria removida do sistema: " + (", ".join(removidas) or "(nenhuma)")
+            if inexistentes:
+                msg += " | categorias inexistentes: " + ", ".join(inexistentes)
+            session.send(msg)
+
         elif command == "CATEGORIAS":
             session.send("OK " + ", ".join(self.engine.listar_categorias()))
 

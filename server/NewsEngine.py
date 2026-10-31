@@ -76,6 +76,26 @@ class NewsEngine:
         print(f"[NewsEngine] [{categoria}] {title} -> {delivered} cliente(s)", flush=True)
         return delivered
 
+    def remover_categorias(self, nomes):
+        """Apaga as categorias do sistema de vez (tambem do arquivo de categorias).
+
+        Retorna (removidas, inexistentes). Quem assinava perde a assinatura."""
+        nomes = list(dict.fromkeys(nomes))  # tira repetidos mantendo a ordem
+        with self.lock:
+            removidas = [c for c in nomes if c in self.categorias]
+            inexistentes = [c for c in nomes if c not in self.categorias]
+            if removidas:
+                self.categorias = [c for c in self.categorias if c not in removidas]
+                self._salvar_categorias()
+                for s in self.sessions:
+                    s.subscriptions.difference_update(removidas)
+            todas = list(self.sessions)
+
+        if removidas:
+            self._avisar(todas, "INFO categoria removida do sistema: " + ", ".join(removidas))
+            print(f"[NewsEngine] Categoria(s) removida(s): {', '.join(removidas)}", flush=True)
+        return removidas, inexistentes
+
     def restaurar(self):
         """Volta o banco ao estado original: apaga todas as noticias e
         restaura as categorias padrao. Retorna quantas noticias foram apagadas."""

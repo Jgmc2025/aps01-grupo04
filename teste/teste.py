@@ -331,6 +331,51 @@ def teste_restaurar(porta):
     finally:
         servidor.derrubar()
 
+def teste_remover_categoria(porta):
+    print("\nREMOVER categoria de vez")
+    servidor = ServidorProprio(porta)
+    if not servidor.subir():
+        checar("servidor proprio subiu", False)
+        return
+    try:
+        leitor = novo_cliente(porta)
+        autor = novo_cliente(porta)
+        leitor.subscribe(["esportes", "cultura"])
+
+        resposta = autor.remove_category(["esportes"])
+        checar("REMOVER apaga a categoria do sistema",
+               resposta == "OK categoria removida do sistema: esportes", resposta)
+        resposta = autor.list_categories()
+        checar("CATEGORIAS nao lista mais a removida", resposta == "OK tecnologia, cultura", resposta)
+        resposta = leitor.my_subscriptions()
+        checar("quem assinava perde a assinatura", resposta == "OK cultura", resposta)
+        aviso = esperar_info(leitor, "categoria removida do sistema: esportes")
+        checar("clientes conectados recebem o aviso", aviso is not None)
+        resposta = autor.publish("esportes", "Titulo", "Resumo")
+        checar("PUBLICAR na categoria removida da erro",
+               resposta == "ERRO categoria inexistente. Disponiveis: tecnologia, cultura", resposta)
+        resposta = autor.remove_category(["politica"])
+        checar("REMOVER categoria que nao existe",
+               resposta == "OK categoria removida do sistema: (nenhuma) | categorias inexistentes: politica", resposta)
+        resposta = autor.send_command("REMOVER")
+        checar("REMOVER sem argumento retorna erro",
+               resposta == "ERRO uso: REMOVER <categoria>[, <categoria>...]", resposta)
+        encerrar(leitor, autor)
+
+        # "de vez": reinicia o servidor e a categoria continua apagada
+        servidor.derrubar()
+        servidor.subir()
+        cliente = novo_cliente(porta)
+        resposta = cliente.list_categories()
+        checar("depois de reiniciar o servidor continua removida", resposta == "OK tecnologia, cultura", resposta)
+
+        resposta = cliente.restore_database()
+        checar("RESTAURAR traz de volta a categoria removida",
+               resposta.endswith("categorias: tecnologia, esportes, cultura"), resposta)
+        encerrar(cliente)
+    finally:
+        servidor.derrubar()
+
 def main():
     parser = argparse.ArgumentParser(description="Testes do feed de noticias PUB/SUB")
     parser.add_argument("--port", type=int, default=5050, help="porta usada pelo servidor de teste")
@@ -362,7 +407,7 @@ def main():
 
     
     # testes que alteram o banco rodam em servidores proprios, em outra porta
-    for teste in (teste_restaurar,):
+    for teste in (teste_restaurar, teste_remover_categoria):
         try:
             teste(args.port + 1)
         except Exception as erro:
