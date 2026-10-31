@@ -37,7 +37,7 @@ class NewsServer:
 
 
     def start(self):
-        self.servidor_socket = socket.socket(socket.AF_INET, socket.SOCK_TCP)
+        self.servidor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.servidor_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.servidor_socket.bind((self.host, self.port))
         self.servidor_socket.listen()

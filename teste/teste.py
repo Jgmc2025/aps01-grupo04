@@ -431,6 +431,9 @@ def teste_adicionar_categoria(porta):
 def teste_conexoes(porta, quantidade=5):
     print(f"\nCONEXOES com {quantidade} clientes")
     clientes = [novo_cliente(porta) for _ in range(quantidade)]
+    # a mensagem de boas-vindas so sai depois que o servidor registrou a sessao
+    for c in clientes:
+        c.infos.get(timeout=ESPERA_NOTICIA)
 
     resposta = clientes[0].connections()
     partes = resposta.split(" | ")
@@ -449,6 +452,7 @@ def teste_conexoes(porta, quantidade=5):
     # quando os clientes saem, as threads deles terminam e saem da lista
     encerrar(*clientes)
     novo = novo_cliente(porta)
+    novo.infos.get(timeout=ESPERA_NOTICIA)
     resumo = novo.connections().split(" | ")[0]
     checar("depois que saem so resta 1 conexao",
            resumo.startswith("OK 1 conexao(oes) simultanea(s)"), resumo)
