@@ -148,6 +148,41 @@ def teste_assinaturas(porta):
     encerrar(cliente)
 
 
+def teste_entrega(porta):
+    print("\npublicacao e entrega")
+    leitor_tec = novo_cliente(porta)
+    leitor_esp = novo_cliente(porta)
+    editor = novo_cliente(porta)
+    leitor_tec.subscribe(["tecnologia"])
+    leitor_esp.subscribe(["esportes"])
+
+    noticia = ("tecnologia", "Novo processador lancado", "Chip promete gastar menos energia.")
+    resposta = editor.publish(*noticia)
+    checar("PUBLICAR confirma 1 assinante", resposta == "OK publicada para 1 assinante(s)", resposta)
+    recebida = proxima_noticia(leitor_tec)
+    checar("assinante de tecnologia recebe categoria, titulo e resumo", recebida == noticia, recebida)
+    recebida = proxima_noticia(leitor_esp, ESPERA_CURTA)
+    checar("assinante de esportes nao recebe", recebida is None, recebida)
+    recebida = proxima_noticia(editor, ESPERA_CURTA)
+    checar("editor sem assinatura nao recebe", recebida is None, recebida)
+
+    # troca a assinatura no meio da sessao
+    leitor_tec.unsubscribe(["tecnologia"])
+    leitor_tec.subscribe(["cultura"])
+
+    editor.publish("tecnologia", "Atualizacao de seguranca", "Correcao para uma falha no navegador.")
+    recebida = proxima_noticia(leitor_tec, ESPERA_CURTA)
+    checar("depois de REMOVER nao recebe mais a categoria", recebida is None, recebida)
+
+    # titulo com acento para conferir o utf-8 de ponta a ponta
+    noticia = ("cultura", "Exposição de arte popular no Recife", "Entrada gratuita até o fim do mês.")
+    editor.publish(*noticia)
+    recebida = proxima_noticia(leitor_tec)
+    checar("depois de INSCREVER passa a receber a nova categoria", recebida == noticia, recebida)
+
+    encerrar(leitor_tec, leitor_esp, editor)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Testes do feed de noticias PUB/SUB")
     parser.add_argument("--port", type=int, default=5050, help="porta usada pelo servidor de teste")
@@ -166,6 +201,7 @@ def main():
     try:
         teste_conexao(args.port)
         teste_assinaturas(args.port)
+        teste_entrega(args.port)
     finally:
         derrubar_servidor(servidor)
 
