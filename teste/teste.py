@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import queue
 import socket
 import argparse
 import tempfile
@@ -14,6 +15,10 @@ sys.path.insert(0, os.path.join(RAIZ, "client"))
 from NewsClient import NewsClient
 
 HOST = "127.0.0.1"
+# tempo maximo esperando uma noticia que deveria chegar
+ESPERA_NOTICIA = 2.0
+# tempo esperando uma noticia que nao deveria chegar
+ESPERA_CURTA = 0.5
 
 acertos = 0
 erros = 0
@@ -70,6 +75,49 @@ def mostrar_log(log):
         print(f.read())
 
 
+def novo_cliente(porta):
+    cliente = NewsClient(HOST, porta)
+    # guarda as noticias e mensagens INFO que chegarem para conferir depois
+    cliente.noticias = queue.Queue()
+    cliente.infos = queue.Queue()
+    cliente.set_news_handler(lambda cat, tit, res: cliente.noticias.put((cat, tit, res)))
+    cliente.set_info_handler(cliente.infos.put)
+    cliente.start()
+    return cliente
+
+
+def proxima_noticia(cliente, espera=ESPERA_NOTICIA):
+    try:
+        return cliente.noticias.get(timeout=espera)
+    except queue.Empty:
+        return None
+
+
+def encerrar(*clientes):
+    for cliente in clientes:
+        cliente.quit()
+    # da tempo do servidor tirar as sessoes da lista antes do proximo teste
+    time.sleep(0.2)
+
+
+def teste_conexao(porta):
+    print("\nconexao")
+    cliente = novo_cliente(porta)
+
+    try:
+        info = cliente.infos.get(timeout=ESPERA_NOTICIA)
+    except queue.Empty:
+        info = ""
+    checar("recebe a mensagem de boas-vindas", "Bem-vindo" in info, info)
+
+    resposta = cliente.list_categories()
+    checar("CATEGORIAS lista as tres categorias", resposta == "OK tecnologia, esportes, cultura", resposta)
+
+    resposta = cliente.quit()
+    checar("SAIR encerra a sessao", resposta == "OK ate logo", resposta)
+    time.sleep(0.2)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Testes do feed de noticias PUB/SUB")
     parser.add_argument("--port", type=int, default=5050, help="porta usada pelo servidor de teste")
@@ -86,7 +134,7 @@ def main():
         sys.exit(1)
 
     try:
-        pass
+        teste_conexao(args.port)
     finally:
         derrubar_servidor(servidor)
 
