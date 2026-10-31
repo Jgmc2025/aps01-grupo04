@@ -1,0 +1,11 @@
+import argparse
+from NewsClient import NewsClient
+
+HELP = ("Comandos: INSCREVER <cat,...> | REMOVER <cat,...> | CATEGORIAS | "
+        "MINHAS | SAIR")
+
+def on_news(category, title, summary):
+    print(f"\n>>> [{category.upper()}] {title}\n    {summary}\n> ", end="", flush=True)
+
+def on_info(text):
+    print(f"[servidor] {text}")
