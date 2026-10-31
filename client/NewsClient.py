@@ -103,6 +103,9 @@ class NewsClient:
     def remove_category(self, categories):
         return self.send_command("REMOVER " + ", ".join(categories))
 
+    def connections(self):
+        return self.send_command("CONEXOES")
+
     def restore_database(self):
         return self.send_command("RESTAURAR")
 

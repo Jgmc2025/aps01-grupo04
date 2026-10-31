@@ -163,6 +163,19 @@ class NewsServer:
             delivered = self.engine.publicar(category, title, summary)
             session.send(f"OK publicada para {delivered} assinante(s)")
 
+        elif command == "CONEXOES":
+            sessoes = self.engine.listar_sessoes()
+            ids = {s.thread.ident for s in sessoes}
+            linhas = []
+            for s in sessoes:
+                voce = " (voce)" if s is session else ""
+                linhas.append(f"{s.addr[0]}:{s.addr[1]}{voce} -> thread {s.thread.name} "
+                              f"id={s.thread.ident} viva={s.thread.is_alive()}")
+            session.send(f"OK {len(sessoes)} conexao(oes) simultanea(s), "
+                         f"{len(ids)} thread(s) de cliente distinta(s), "
+                         f"{threading.active_count()} thread(s) no processo "
+                         f"(1 principal + {len(ids)} de cliente) | " + " | ".join(linhas))
+
         elif command == "RESTAURAR":
             apagadas = self.engine.restaurar()
             session.send(f"OK banco restaurado: {apagadas} noticia(s) apagada(s) | "

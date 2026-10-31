@@ -428,6 +428,32 @@ def teste_adicionar_categoria(porta):
     finally:
         servidor.derrubar()
 
+def teste_conexoes(porta, quantidade=5):
+    print(f"\nCONEXOES com {quantidade} clientes")
+    clientes = [novo_cliente(porta) for _ in range(quantidade)]
+
+    resposta = clientes[0].connections()
+    partes = resposta.split(" | ")
+    resumo = partes[0]
+    checar(f"mostra {quantidade} conexoes simultaneas",
+           resumo.startswith(f"OK {quantidade} conexao(oes) simultanea(s)"), resumo)
+    checar(f"mostra {quantidade} threads de cliente distintas",
+           f"{quantidade} thread(s) de cliente distinta(s)" in resumo, resumo)
+    checar(f"processo tem 1 thread principal + {quantidade} de cliente",
+           f"{quantidade + 1} thread(s) no processo" in resumo, resumo)
+    ids = [p.split("id=")[1].split()[0] for p in partes[1:]]
+    checar("cada conexao aparece com um id de thread diferente",
+           len(ids) == quantidade and len(set(ids)) == quantidade, ids)
+    checar("quem pediu aparece marcado com (voce)", resposta.count("(voce)") == 1)
+
+    # quando os clientes saem, as threads deles terminam e saem da lista
+    encerrar(*clientes)
+    novo = novo_cliente(porta)
+    resumo = novo.connections().split(" | ")[0]
+    checar("depois que saem so resta 1 conexao",
+           resumo.startswith("OK 1 conexao(oes) simultanea(s)"), resumo)
+    encerrar(novo)
+
 def main():
     parser = argparse.ArgumentParser(description="Testes do feed de noticias PUB/SUB")
     parser.add_argument("--port", type=int, default=5050, help="porta usada pelo servidor de teste")
@@ -443,7 +469,7 @@ def main():
         mostrar_log(log)
         sys.exit(1)
 
-    testes = [teste_conexao, teste_assinaturas, teste_entrega, teste_erros, teste_simultaneos]
+    testes = [teste_conexao, teste_assinaturas, teste_entrega, teste_erros, teste_simultaneos, teste_conexoes]
     publicadas = 0
     try:
         for teste in testes:
