@@ -8,8 +8,8 @@ class ClienteSessao:
     """Criando agora um objeto de sessão para cada cliente que se conecta ao servidor"""
     def __init__(self, socket, enderco):
         self.socket = socket
-        self.enderco = enderco
-        self.is_authenticated = False  # Inicialmente, o cliente não está autenticado
+        self.addr = enderco
+        self.subscriptions = set()  # categorias assinadas por este cliente
         self.enviarlock = threading.Lock()
 
     def send(self, message): # Função de envio de mensagens para o cliente
@@ -47,7 +47,7 @@ class NewsServer:
             while True:
                 sock, addr = self.servidor_socket.accept()
                 sessao = ClienteSessao(sock, addr)
-                self.engine.register_sessao(sessao)
+                self.engine.registrar_sessao(sessao)
                 threading.Thread(target=self.handle_client,
                                  args=(sessao,), daemon=True).start()
         except KeyboardInterrupt:
@@ -98,7 +98,7 @@ class NewsServer:
             if not cats:
                 session.send("ERRO uso: INSCREVER <categoria>[, <categoria>...]")
                 return True
-            valid, invalid = self.engine.subscribe(session, cats)
+            valid, invalid = self.engine.assinar(session, cats)
             msg = "OK inscrito em: " + (", ".join(valid) or "(nenhuma)")
             if invalid:
                 msg += " | categorias inexistentes: " + ", ".join(invalid)
@@ -109,14 +109,14 @@ class NewsServer:
             if not cats:
                 session.send("ERRO uso: REMOVER <categoria>[, <categoria>...]")
                 return True
-            removed = self.engine.unsubscribe(session, cats)
+            removed = self.engine.nao_assinar(session, cats)
             session.send("OK removido: " + (", ".join(removed) or "(nenhuma)"))
 
         elif command == "CATEGORIAS":
             session.send("OK " + ", ".join(CATEGORIES))
 
         elif command == "MINHAS":
-            current = self.engine.subscriptions_of(session)
+            current = self.engine.assinaturas_da_sessao(session)
             session.send("OK " + (", ".join(current) or "(nenhuma assinatura)"))
 
         elif command == "PUBLICAR":
@@ -129,7 +129,7 @@ class NewsServer:
             if category not in CATEGORIES:
                 session.send("ERRO categoria inexistente. Disponiveis: " + ", ".join(CATEGORIES))
                 return True
-            delivered = self.engine.publish(category, title, summary)
+            delivered = self.engine.publicar(category, title, summary)
             session.send(f"OK publicada para {delivered} assinante(s)")
 
         elif command == "SAIR":
