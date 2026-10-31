@@ -19,18 +19,20 @@ HOST = "127.0.0.1"
 ESPERA_NOTICIA = 2.0
 # tempo esperando uma noticia que nao deveria chegar
 ESPERA_CURTA = 0.5
+# tempo para o servidor remover a sessao depois do SAIR
+ESPERA_SAIDA = 0.2
 
 acertos = 0
-erros = 0
+falhas = 0
 
 
 def checar(descricao, condicao, detalhe=""):
-    global acertos, erros
+    global acertos, falhas
     if condicao:
         acertos += 1
         print(f"  [ok]    {descricao}")
     else:
-        erros += 1
+        falhas += 1
         print(f"  [falha] {descricao}")
         if detalhe:
             print(f"          recebido: {detalhe}")
@@ -97,7 +99,7 @@ def encerrar(*clientes):
     for cliente in clientes:
         cliente.quit()
     # da tempo do servidor tirar as sessoes da lista antes do proximo teste
-    time.sleep(0.2)
+    time.sleep(ESPERA_SAIDA)
 
 
 def teste_conexao(porta):
@@ -115,7 +117,7 @@ def teste_conexao(porta):
 
     resposta = cliente.quit()
     checar("SAIR encerra a sessao", resposta == "OK ate logo", resposta)
-    time.sleep(0.2)
+    time.sleep(ESPERA_SAIDA)
 
 
 def teste_assinaturas(porta):
@@ -183,6 +185,30 @@ def teste_entrega(porta):
     encerrar(leitor_tec, leitor_esp, editor)
 
 
+def teste_erros(porta):
+    print("\nerros do protocolo")
+    cliente = novo_cliente(porta)
+
+    # comando enviado e resposta esperada do servidor
+    casos = [
+        ("INSCREVER", "ERRO uso: INSCREVER <categoria>[, <categoria>...]"),
+        ("REMOVER", "ERRO uso: REMOVER <categoria>[, <categoria>...]"),
+        ("PUBLICAR esportes|so o titulo", "ERRO uso: PUBLICAR categoria|titulo|resumo"),
+        ("PUBLICAR esportes||resumo sem titulo", "ERRO uso: PUBLICAR categoria|titulo|resumo"),
+        ("PUBLICAR politica|Titulo|Resumo", "ERRO categoria inexistente. Disponiveis: tecnologia, esportes, cultura"),
+        ("LISTAR", "ERRO comando desconhecido"),
+    ]
+    for comando, esperado in casos:
+        resposta = cliente.send_command(comando)
+        checar(f"'{comando}' retorna erro", resposta == esperado, resposta)
+
+    # depois dos erros a sessao continua funcionando
+    resposta = cliente.list_categories()
+    checar("sessao continua aberta depois dos erros", resposta.startswith("OK"), resposta)
+
+    encerrar(cliente)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Testes do feed de noticias PUB/SUB")
     parser.add_argument("--port", type=int, default=5050, help="porta usada pelo servidor de teste")
@@ -202,13 +228,14 @@ def main():
         teste_conexao(args.port)
         teste_assinaturas(args.port)
         teste_entrega(args.port)
+        teste_erros(args.port)
     finally:
         derrubar_servidor(servidor)
 
-    print(f"\n{acertos} ok, {erros} falha(s)")
-    if erros:
+    print(f"\n{acertos} ok, {falhas} falha(s)")
+    if falhas:
         mostrar_log(log)
-    sys.exit(1 if erros else 0)
+    sys.exit(1 if falhas else 0)
 
 
 if __name__ == "__main__":
