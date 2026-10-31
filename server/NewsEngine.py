@@ -76,6 +76,27 @@ class NewsEngine:
         print(f"[NewsEngine] [{categoria}] {title} -> {delivered} cliente(s)", flush=True)
         return delivered
 
+    def adicionar_categorias(self, nomes):
+        """Cria categorias no sistema de vez (gravadas no arquivo de categorias).
+
+        Retorna (adicionadas, existentes, invalidas)."""
+        nomes = list(dict.fromkeys(nomes))  # tira repetidos mantendo a ordem
+        # nome valido: letras, numeros, '-' ou '_' (nada de '|' nem espacos)
+        invalidas = [c for c in nomes if not all(ch.isalnum() or ch in "-_" for ch in c)]
+        with self.lock:
+            candidatas = [c for c in nomes if c not in invalidas]
+            adicionadas = [c for c in candidatas if c not in self.categorias]
+            existentes = [c for c in candidatas if c in self.categorias]
+            if adicionadas:
+                self.categorias.extend(adicionadas)
+                self._salvar_categorias()
+            todas = list(self.sessions)
+
+        if adicionadas:
+            self._avisar(todas, "INFO nova categoria disponivel: " + ", ".join(adicionadas))
+            print(f"[NewsEngine] Categoria(s) adicionada(s): {', '.join(adicionadas)}", flush=True)
+        return adicionadas, existentes, invalidas
+
     def remover_categorias(self, nomes):
         """Apaga as categorias do sistema de vez (tambem do arquivo de categorias).
 

@@ -376,6 +376,58 @@ def teste_remover_categoria(porta):
     finally:
         servidor.derrubar()
 
+def teste_adicionar_categoria(porta):
+    print("\nADICIONAR categoria de vez")
+    servidor = ServidorProprio(porta)
+    if not servidor.subir():
+        checar("servidor proprio subiu", False)
+        return
+    try:
+        leitor = novo_cliente(porta)
+        autor = novo_cliente(porta)
+
+        resposta = autor.add_category(["politica"])
+        checar("ADICIONAR cria a categoria",
+               resposta == "OK categoria adicionada ao sistema: politica", resposta)
+        resposta = autor.list_categories()
+        checar("CATEGORIAS lista a nova", resposta == "OK tecnologia, esportes, cultura, politica", resposta)
+        aviso = esperar_info(leitor, "nova categoria disponivel: politica")
+        checar("clientes conectados recebem o aviso", aviso is not None)
+
+        # a categoria nova funciona como qualquer outra
+        resposta = leitor.subscribe(["politica"])
+        checar("INSCREVER na categoria nova", resposta == "OK inscrito em: politica", resposta)
+        noticia = ("politica", "Votacao adiada", "Sessao remarcada para a proxima semana.")
+        autor.publish(*noticia)
+        recebida = proxima_noticia(leitor)
+        checar("assinante recebe noticia da categoria nova", recebida == noticia, recebida)
+
+        resposta = autor.add_category(["Politica"])
+        checar("ADICIONAR categoria que ja existe",
+               resposta == "OK categoria adicionada ao sistema: (nenhuma) | ja existiam: politica", resposta)
+        resposta = autor.add_category(["a|b"])
+        checar("ADICIONAR com nome invalido",
+               resposta == "OK categoria adicionada ao sistema: (nenhuma) | nomes invalidos: a|b", resposta)
+        resposta = autor.send_command("ADICIONAR")
+        checar("ADICIONAR sem argumento retorna erro",
+               resposta == "ERRO uso: ADICIONAR <categoria>[, <categoria>...]", resposta)
+        encerrar(leitor, autor)
+
+        # "de vez": reinicia o servidor e a categoria continua existindo
+        servidor.derrubar()
+        servidor.subir()
+        cliente = novo_cliente(porta)
+        resposta = cliente.list_categories()
+        checar("depois de reiniciar o servidor continua existindo",
+               resposta == "OK tecnologia, esportes, cultura, politica", resposta)
+
+        resposta = cliente.restore_database()
+        checar("RESTAURAR apaga a categoria adicionada",
+               resposta.endswith("categorias: tecnologia, esportes, cultura"), resposta)
+        encerrar(cliente)
+    finally:
+        servidor.derrubar()
+
 def main():
     parser = argparse.ArgumentParser(description="Testes do feed de noticias PUB/SUB")
     parser.add_argument("--port", type=int, default=5050, help="porta usada pelo servidor de teste")
@@ -407,7 +459,7 @@ def main():
 
     
     # testes que alteram o banco rodam em servidores proprios, em outra porta
-    for teste in (teste_restaurar, teste_remover_categoria):
+    for teste in (teste_restaurar, teste_remover_categoria, teste_adicionar_categoria):
         try:
             teste(args.port + 1)
         except Exception as erro:

@@ -112,6 +112,19 @@ class NewsServer:
             removed = self.engine.nao_assinar(session, cats)
             session.send("OK cancelado: " + (", ".join(removed) or "(nenhuma)"))
 
+        elif command == "ADICIONAR":
+            cats = self._parse_categories(rest)
+            if not cats:
+                session.send("ERRO uso: ADICIONAR <categoria>[, <categoria>...]")
+                return True
+            adicionadas, existentes, invalidas = self.engine.adicionar_categorias(cats)
+            msg = "OK categoria adicionada ao sistema: " + (", ".join(adicionadas) or "(nenhuma)")
+            if existentes:
+                msg += " | ja existiam: " + ", ".join(existentes)
+            if invalidas:
+                msg += " | nomes invalidos: " + ", ".join(invalidas)
+            session.send(msg)
+
         elif command == "REMOVER":
             cats = self._parse_categories(rest)
             if not cats:

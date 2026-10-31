@@ -97,6 +97,9 @@ class NewsClient:
     def publish(self, category, title, summary):
         return self.send_command(f"PUBLICAR {category}|{title}|{summary}")
 
+    def add_category(self, categories):
+        return self.send_command("ADICIONAR " + ", ".join(categories))
+
     def remove_category(self, categories):
         return self.send_command("REMOVER " + ", ".join(categories))
 
