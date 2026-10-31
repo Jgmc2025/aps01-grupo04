@@ -1,15 +1,21 @@
+import os
 import threading
 import time
 import json
 
-CATEGORIES = ["tecnologia", "esportes", "cultura"]
+# categorias do estado original do sistema (usadas tambem pelo RESTAURAR)
+CATEGORIAS_PADRAO = ["tecnologia", "esportes", "cultura"]
 
 class NewsEngine:
     def __init__(self, armazenamento="noticias.jsonl"):
         self.armazenamento = armazenamento
+        # o arquivo de categorias fica na mesma pasta do arquivo de noticias
+        pasta = os.path.dirname(os.path.abspath(armazenamento))
+        self.arquivo_categorias = os.path.join(pasta, "categorias.json")
         self.sessions = []                 # sessoes conectadas
-        self.lock = threading.Lock()       # protege sessions e subscriptions
+        self.lock = threading.Lock()       # protege sessions, subscriptions e categorias
         self.lock_armazenamento = threading.Lock()  # protege o arquivo de noticias
+        self.categorias = self._carregar_categorias()
         self.total_news = self._count_existing()
 
     def registrar_sessao(self, session):
@@ -21,10 +27,14 @@ class NewsEngine:
             if session in self.sessions:
                 self.sessions.remove(session)
 
-    def assinar(self, session, categories):
-        valid = [c for c in categories if c in CATEGORIES]
-        invalid = [c for c in categories if c not in CATEGORIES]
+    def listar_categorias(self):
         with self.lock:
+            return list(self.categorias)
+
+    def assinar(self, session, categories):
+        with self.lock:
+            valid = [c for c in categories if c in self.categorias]
+            invalid = [c for c in categories if c not in self.categorias]
             session.subscriptions.update(valid)
         return valid, invalid
 
@@ -65,7 +75,49 @@ class NewsEngine:
                 delivered += 1
         print(f"[NewsEngine] [{categoria}] {title} -> {delivered} cliente(s)", flush=True)
         return delivered
-    
+
+    def restaurar(self):
+        """Volta o banco ao estado original: apaga todas as noticias e
+        restaura as categorias padrao. Retorna quantas noticias foram apagadas."""
+        with self.lock_armazenamento:
+            apagadas = self.total_news
+            open(self.armazenamento, "w", encoding="utf-8").close()
+            self.total_news = 0
+
+        with self.lock:
+            self.categorias = list(CATEGORIAS_PADRAO)
+            self._salvar_categorias()
+            # ninguem continua assinando categoria que deixou de existir
+            for s in self.sessions:
+                s.subscriptions.intersection_update(self.categorias)
+            todas = list(self.sessions)
+
+        self._avisar(todas, "INFO banco de dados restaurado ao estado original")
+        print(f"[NewsEngine] Banco restaurado ({apagadas} noticia(s) apagada(s))", flush=True)
+        return apagadas
+
+    def _avisar(self, sessoes, texto):
+        """Envia uma mensagem INFO para as sessoes (sempre fora do lock)."""
+        for s in sessoes:
+            s.send(texto)
+
+    def _carregar_categorias(self):
+        try:
+            with open(self.arquivo_categorias, "r", encoding="utf-8") as f:
+                categorias = json.load(f)
+            if isinstance(categorias, list):
+                return categorias
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+        categorias = list(CATEGORIAS_PADRAO)
+        self.categorias = categorias
+        self._salvar_categorias()
+        return categorias
+
+    def _salvar_categorias(self):
+        with open(self.arquivo_categorias, "w", encoding="utf-8") as f:
+            json.dump(self.categorias, f, ensure_ascii=False)
+
     def _count_existing(self): # Conta quantas noticias existem no arquivo de armazenamento
         try:
             with open(self.armazenamento, "r", encoding="utf-8") as f:
