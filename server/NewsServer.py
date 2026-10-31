@@ -2,7 +2,7 @@ import threading
 import socket
 import argparse
 
-from server.NewsEngine import NewsEngine, CATEGORIES
+from server.NewsEngine import NewsEngine
 
 class ClienteSessao:
     """Criando agora um objeto de sessão para cada cliente que se conecta ao servidor"""
@@ -64,7 +64,7 @@ class NewsServer:
     def handle_client(self, sessao):
         print(f"[NewsServer] Cliente conectado: {sessao.addr}", flush=True)
         try:
-            sessao.send("INFO Bem-vindo! Categorias: " + ", ".join(CATEGORIES)
+            sessao.send("INFO Bem-vindo! Categorias: " + ", ".join(self.engine.listar_categorias())
                          + ". Use INSCREVER <categoria>.")
             with sessao.socket.makefile("r", encoding="utf-8", newline="\n") as f:
                 for line in f:
@@ -113,7 +113,7 @@ class NewsServer:
             session.send("OK cancelado: " + (", ".join(removed) or "(nenhuma)"))
 
         elif command == "CATEGORIAS":
-            session.send("OK " + ", ".join(CATEGORIES))
+            session.send("OK " + ", ".join(self.engine.listar_categorias()))
 
         elif command == "MINHAS":
             current = self.engine.assinaturas_da_sessao(session)
@@ -126,11 +126,17 @@ class NewsServer:
                 return True
             category, title, summary = parts
             category = category.lower()
-            if category not in CATEGORIES:
-                session.send("ERRO categoria inexistente. Disponiveis: " + ", ".join(CATEGORIES))
+            categorias = self.engine.listar_categorias()
+            if category not in categorias:
+                session.send("ERRO categoria inexistente. Disponiveis: " + ", ".join(categorias))
                 return True
             delivered = self.engine.publicar(category, title, summary)
             session.send(f"OK publicada para {delivered} assinante(s)")
+
+        elif command == "RESTAURAR":
+            apagadas = self.engine.restaurar()
+            session.send(f"OK banco restaurado: {apagadas} noticia(s) apagada(s) | "
+                         "categorias: " + ", ".join(self.engine.listar_categorias()))
 
         elif command == "SAIR":
             session.send("OK ate logo")

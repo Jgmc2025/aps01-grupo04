@@ -97,6 +97,9 @@ class NewsClient:
     def publish(self, category, title, summary):
         return self.send_command(f"PUBLICAR {category}|{title}|{summary}")
 
+    def restore_database(self):
+        return self.send_command("RESTAURAR")
+
     def quit(self):
         try:
             return self.send_command("SAIR", timeout=2)

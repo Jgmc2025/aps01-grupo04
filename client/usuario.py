@@ -6,7 +6,7 @@ import time
 from NewsClient import NewsClient
 
 HELP = ("Comandos: INSCREVER <cat,...> | CANCELAR <cat,...> | CATEGORIAS | "
-        "MINHAS | PUBLICAR categoria|titulo|resumo | SAIR")
+        "MINHAS | PUBLICAR categoria|titulo|resumo | RESTAURAR | SAIR")
 
 # noticias usadas no modo automatico (--auto)
 SAMPLE_NEWS = [
