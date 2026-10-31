@@ -118,6 +118,36 @@ def teste_conexao(porta):
     time.sleep(0.2)
 
 
+def teste_assinaturas(porta):
+    print("\ninscricao e remocao")
+    cliente = novo_cliente(porta)
+
+    resposta = cliente.subscribe(["tecnologia", "esportes"])
+    checar("INSCREVER em duas categorias", resposta == "OK inscrito em: tecnologia, esportes", resposta)
+
+    resposta = cliente.my_subscriptions()
+    checar("MINHAS mostra as duas", resposta == "OK esportes, tecnologia", resposta)
+
+    resposta = cliente.unsubscribe(["tecnologia"])
+    checar("REMOVER uma categoria", resposta == "OK removido: tecnologia", resposta)
+
+    resposta = cliente.my_subscriptions()
+    checar("MINHAS depois de remover", resposta == "OK esportes", resposta)
+
+    resposta = cliente.unsubscribe(["cultura"])
+    checar("REMOVER categoria que nao estava assinada", resposta == "OK removido: (nenhuma)", resposta)
+
+    # a valida entra e a inexistente aparece na resposta
+    resposta = cliente.subscribe(["cultura", "politica"])
+    checar("INSCREVER com uma categoria inexistente",
+           resposta == "OK inscrito em: cultura | categorias inexistentes: politica", resposta)
+
+    resposta = cliente.send_command("inscrever ESPORTES")
+    checar("comando e categoria em maiusculas ou minusculas", resposta == "OK inscrito em: esportes", resposta)
+
+    encerrar(cliente)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Testes do feed de noticias PUB/SUB")
     parser.add_argument("--port", type=int, default=5050, help="porta usada pelo servidor de teste")
@@ -135,6 +165,7 @@ def main():
 
     try:
         teste_conexao(args.port)
+        teste_assinaturas(args.port)
     finally:
         derrubar_servidor(servidor)
 
