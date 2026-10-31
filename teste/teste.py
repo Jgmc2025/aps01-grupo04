@@ -4,6 +4,7 @@ import time
 import queue
 import socket
 import argparse
+import threading
 import tempfile
 import subprocess
 
@@ -209,6 +210,47 @@ def teste_erros(porta):
     encerrar(cliente)
 
 
+def teste_simultaneos(porta, quantidade=10):
+    print(f"\n{quantidade} clientes ao mesmo tempo")
+    leitores = [novo_cliente(porta) for _ in range(quantidade)]
+    for leitor in leitores:
+        leitor.subscribe(["esportes"])
+    editor = novo_cliente(porta)
+
+    resposta = editor.publish("esportes", "Final do campeonato", "Jogo decidido nos penaltis.")
+    checar(f"PUBLICAR confirma {quantidade} assinantes",
+           resposta == f"OK publicada para {quantidade} assinante(s)", resposta)
+    recebidas = sum(1 for leitor in leitores if proxima_noticia(leitor) is not None)
+    checar("todos os clientes recebem a noticia", recebidas == quantidade, f"{recebidas} de {quantidade}")
+
+    # tres editores publicando juntos, cada um em uma thread
+    editores = [novo_cliente(porta) for _ in range(3)]
+    threads = [
+        threading.Thread(target=e.publish, args=("esportes", f"Rodada {i}", f"Resumo da rodada {i}."))
+        for i, e in enumerate(editores)
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    # cada leitor deve receber as tres, em qualquer ordem
+    completos = 0
+    for leitor in leitores:
+        titulos = set()
+        for _ in range(3):
+            noticia = proxima_noticia(leitor)
+            if noticia is None:
+                break
+            titulos.add(noticia[1])
+        if titulos == {"Rodada 0", "Rodada 1", "Rodada 2"}:
+            completos += 1
+    checar("publicacoes simultaneas chegam inteiras para todos",
+           completos == quantidade, f"{completos} de {quantidade}")
+
+    encerrar(*leitores, editor, *editores)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Testes do feed de noticias PUB/SUB")
     parser.add_argument("--port", type=int, default=5050, help="porta usada pelo servidor de teste")
@@ -229,6 +271,7 @@ def main():
         teste_assinaturas(args.port)
         teste_entrega(args.port)
         teste_erros(args.port)
+        teste_simultaneos(args.port)
     finally:
         derrubar_servidor(servidor)
 
