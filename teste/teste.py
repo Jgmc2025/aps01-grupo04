@@ -273,6 +273,63 @@ def teste_armazenamento(arquivo, esperadas):
     titulos = [r.get("titulo") for r in registros]
     checar("acentos gravados corretamente", "Exposição de arte popular no Recife" in titulos)
 
+def esperar_info(cliente, trecho, espera=ESPERA_NOTICIA):
+    """Espera chegar uma mensagem INFO que contenha o trecho."""
+    limite = time.time() + espera
+    while time.time() < limite:
+        try:
+            info = cliente.infos.get(timeout=0.2)
+        except queue.Empty:
+            continue
+        if trecho in info:
+            return info
+    return None
+
+
+class ServidorProprio:
+    """Servidor com arquivos temporarios proprios, para os testes que alteram
+    o banco (categorias e noticias) sem atrapalhar os outros testes."""
+
+    def __init__(self, porta):
+        self.porta = porta
+        pasta = tempfile.mkdtemp(prefix="feed_banco_")
+        self.arquivo = os.path.join(pasta, "noticias.jsonl")
+        self.log = os.path.join(pasta, "servidor.log")
+        self.processo = None
+
+    def subir(self):
+        self.processo = subir_servidor(self.porta, self.arquivo, self.log)
+        return self.processo is not None
+
+    def derrubar(self):
+        if self.processo:
+            derrubar_servidor(self.processo)
+            self.processo = None
+
+    def total_noticias(self):
+        with open(self.arquivo, encoding="utf-8") as f:
+            return sum(1 for linha in f if linha.strip())
+
+
+def teste_restaurar(porta):
+    print("\nRESTAURAR o banco de dados")
+    servidor = ServidorProprio(porta)
+    if not servidor.subir():
+        checar("servidor proprio subiu", False)
+        return
+    try:
+        cliente = novo_cliente(porta)
+        cliente.publish("tecnologia", "Noticia antiga", "Sera apagada.")
+        checar("arquivo tem 1 noticia antes de restaurar", servidor.total_noticias() == 1)
+
+        resposta = cliente.restore_database()
+        checar("RESTAURAR responde com o que foi apagado",
+               resposta == "OK banco restaurado: 1 noticia(s) apagada(s) | categorias: tecnologia, esportes, cultura",
+               resposta)
+        checar("arquivo de noticias fica vazio", servidor.total_noticias() == 0)
+        encerrar(cliente)
+    finally:
+        servidor.derrubar()
 
 def main():
     parser = argparse.ArgumentParser(description="Testes do feed de noticias PUB/SUB")
@@ -302,6 +359,14 @@ def main():
         derrubar_servidor(servidor)
 
     teste_armazenamento(arquivo, publicadas)
+
+    
+    # testes que alteram o banco rodam em servidores proprios, em outra porta
+    for teste in (teste_restaurar,):
+        try:
+            teste(args.port + 1)
+        except Exception as erro:
+            checar(f"{teste.__name__} rodou ate o fim", False, repr(erro))
 
     print(f"\n{acertos} ok, {falhas} falha(s)")
     if falhas:
