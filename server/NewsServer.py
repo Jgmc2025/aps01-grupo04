@@ -104,13 +104,13 @@ class NewsServer:
                 msg += " | categorias inexistentes: " + ", ".join(invalid)
             session.send(msg)
 
-        elif command == "REMOVER":
+        elif command == "CANCELAR":
             cats = self._parse_categories(rest)
             if not cats:
-                session.send("ERRO uso: REMOVER <categoria>[, <categoria>...]")
+                session.send("ERRO uso: CANCELAR <categoria>[, <categoria>...]")
                 return True
             removed = self.engine.nao_assinar(session, cats)
-            session.send("OK removido: " + (", ".join(removed) or "(nenhuma)"))
+            session.send("OK cancelado: " + (", ".join(removed) or "(nenhuma)"))
 
         elif command == "CATEGORIAS":
             session.send("OK " + ", ".join(CATEGORIES))

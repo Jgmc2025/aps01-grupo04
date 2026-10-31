@@ -3,7 +3,7 @@
 import argparse
 from NewsClient import NewsClient
 
-HELP = ("Comandos: INSCREVER <cat,...> | REMOVER <cat,...> | CATEGORIAS | "
+HELP = ("Comandos: INSCREVER <cat,...> | CANCELAR <cat,...> | CATEGORIAS | "
         "MINHAS | SAIR")
 
 def on_news(category, title, summary):

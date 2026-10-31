@@ -123,7 +123,7 @@ def teste_conexao(porta):
 
 
 def teste_assinaturas(porta):
-    print("\ninscricao e remocao")
+    print("\ninscricao e cancelamento")
     cliente = novo_cliente(porta)
 
     resposta = cliente.subscribe(["tecnologia", "esportes"])
@@ -133,13 +133,13 @@ def teste_assinaturas(porta):
     checar("MINHAS mostra as duas", resposta == "OK esportes, tecnologia", resposta)
 
     resposta = cliente.unsubscribe(["tecnologia"])
-    checar("REMOVER uma categoria", resposta == "OK removido: tecnologia", resposta)
+    checar("CANCELAR uma categoria", resposta == "OK cancelado: tecnologia", resposta)
 
     resposta = cliente.my_subscriptions()
-    checar("MINHAS depois de remover", resposta == "OK esportes", resposta)
+    checar("MINHAS depois de cancelar", resposta == "OK esportes", resposta)
 
     resposta = cliente.unsubscribe(["cultura"])
-    checar("REMOVER categoria que nao estava assinada", resposta == "OK removido: (nenhuma)", resposta)
+    checar("CANCELAR categoria que nao estava assinada", resposta == "OK cancelado: (nenhuma)", resposta)
 
     # a valida entra e a inexistente aparece na resposta
     resposta = cliente.subscribe(["cultura", "politica"])
@@ -176,7 +176,7 @@ def teste_entrega(porta):
 
     editor.publish("tecnologia", "Atualizacao de seguranca", "Correcao para uma falha no navegador.")
     recebida = proxima_noticia(leitor_tec, ESPERA_CURTA)
-    checar("depois de REMOVER nao recebe mais a categoria", recebida is None, recebida)
+    checar("depois de CANCELAR nao recebe mais a categoria", recebida is None, recebida)
 
     # titulo com acento para conferir o utf-8 de ponta a ponta
     noticia = ("cultura", "Exposição de arte popular no Recife", "Entrada gratuita até o fim do mês.")
@@ -196,7 +196,7 @@ def teste_erros(porta):
     # comando enviado e resposta esperada do servidor
     casos = [
         ("INSCREVER", "ERRO uso: INSCREVER <categoria>[, <categoria>...]"),
-        ("REMOVER", "ERRO uso: REMOVER <categoria>[, <categoria>...]"),
+        ("CANCELAR", "ERRO uso: CANCELAR <categoria>[, <categoria>...]"),
         ("PUBLICAR esportes|so o titulo", "ERRO uso: PUBLICAR categoria|titulo|resumo"),
         ("PUBLICAR esportes||resumo sem titulo", "ERRO uso: PUBLICAR categoria|titulo|resumo"),
         ("PUBLICAR politica|Titulo|Resumo", "ERRO categoria inexistente. Disponiveis: tecnologia, esportes, cultura"),

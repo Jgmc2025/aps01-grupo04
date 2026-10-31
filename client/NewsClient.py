@@ -85,7 +85,7 @@ class NewsClient:
         return self.send_command("INSCREVER " + ", ".join(categories))
 
     def unsubscribe(self, categories):
-        return self.send_command("REMOVER " + ", ".join(categories))
+        return self.send_command("CANCELAR " + ", ".join(categories))
 
     def list_categories(self):
         return self.send_command("CATEGORIAS")
