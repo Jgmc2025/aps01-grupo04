@@ -156,35 +156,35 @@ def teste_entrega(porta):
     print("\npublicacao e entrega")
     leitor_tec = novo_cliente(porta)
     leitor_esp = novo_cliente(porta)
-    editor = novo_cliente(porta)
+    autor = novo_cliente(porta)
     leitor_tec.subscribe(["tecnologia"])
     leitor_esp.subscribe(["esportes"])
 
     noticia = ("tecnologia", "Novo processador lancado", "Chip promete gastar menos energia.")
-    resposta = editor.publish(*noticia)
+    resposta = autor.publish(*noticia)
     checar("PUBLICAR confirma 1 assinante", resposta == "OK publicada para 1 assinante(s)", resposta)
     recebida = proxima_noticia(leitor_tec)
     checar("assinante de tecnologia recebe categoria, titulo e resumo", recebida == noticia, recebida)
     recebida = proxima_noticia(leitor_esp, ESPERA_CURTA)
     checar("assinante de esportes nao recebe", recebida is None, recebida)
-    recebida = proxima_noticia(editor, ESPERA_CURTA)
-    checar("editor sem assinatura nao recebe", recebida is None, recebida)
+    recebida = proxima_noticia(autor, ESPERA_CURTA)
+    checar("autor sem assinatura nao recebe", recebida is None, recebida)
 
     # troca a assinatura no meio da sessao
     leitor_tec.unsubscribe(["tecnologia"])
     leitor_tec.subscribe(["cultura"])
 
-    editor.publish("tecnologia", "Atualizacao de seguranca", "Correcao para uma falha no navegador.")
+    autor.publish("tecnologia", "Atualizacao de seguranca", "Correcao para uma falha no navegador.")
     recebida = proxima_noticia(leitor_tec, ESPERA_CURTA)
     checar("depois de CANCELAR nao recebe mais a categoria", recebida is None, recebida)
 
     # titulo com acento para conferir o utf-8 de ponta a ponta
     noticia = ("cultura", "Exposição de arte popular no Recife", "Entrada gratuita até o fim do mês.")
-    editor.publish(*noticia)
+    autor.publish(*noticia)
     recebida = proxima_noticia(leitor_tec)
     checar("depois de INSCREVER passa a receber a nova categoria", recebida == noticia, recebida)
 
-    encerrar(leitor_tec, leitor_esp, editor)
+    encerrar(leitor_tec, leitor_esp, autor)
     # quantidade de noticias publicadas com sucesso neste teste
     return 3
 
@@ -218,19 +218,19 @@ def teste_simultaneos(porta, quantidade=10):
     leitores = [novo_cliente(porta) for _ in range(quantidade)]
     for leitor in leitores:
         leitor.subscribe(["esportes"])
-    editor = novo_cliente(porta)
+    autor = novo_cliente(porta)
 
-    resposta = editor.publish("esportes", "Final do campeonato", "Jogo decidido nos penaltis.")
+    resposta = autor.publish("esportes", "Final do campeonato", "Jogo decidido nos penaltis.")
     checar(f"PUBLICAR confirma {quantidade} assinantes",
            resposta == f"OK publicada para {quantidade} assinante(s)", resposta)
     recebidas = sum(1 for leitor in leitores if proxima_noticia(leitor) is not None)
     checar("todos os clientes recebem a noticia", recebidas == quantidade, f"{recebidas} de {quantidade}")
 
-    # tres editores publicando juntos, cada um em uma thread
-    editores = [novo_cliente(porta) for _ in range(3)]
+    # tres autores publicando juntos, cada um em uma thread
+    autores = [novo_cliente(porta) for _ in range(3)]
     threads = [
         threading.Thread(target=e.publish, args=("esportes", f"Rodada {i}", f"Resumo da rodada {i}."))
-        for i, e in enumerate(editores)
+        for i, e in enumerate(autores)
     ]
     for t in threads:
         t.start()
@@ -251,8 +251,8 @@ def teste_simultaneos(porta, quantidade=10):
     checar("publicacoes simultaneas chegam inteiras para todos",
            completos == quantidade, f"{completos} de {quantidade}")
 
-    encerrar(*leitores, editor, *editores)
-    return 1 + len(editores)
+    encerrar(*leitores, autor, *autores)
+    return 1 + len(autores)
 
 
 def teste_armazenamento(arquivo, esperadas):
