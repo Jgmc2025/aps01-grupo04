@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import time
 import queue
 import socket
@@ -184,6 +185,8 @@ def teste_entrega(porta):
     checar("depois de INSCREVER passa a receber a nova categoria", recebida == noticia, recebida)
 
     encerrar(leitor_tec, leitor_esp, editor)
+    # quantidade de noticias publicadas com sucesso neste teste
+    return 3
 
 
 def teste_erros(porta):
@@ -249,6 +252,26 @@ def teste_simultaneos(porta, quantidade=10):
            completos == quantidade, f"{completos} de {quantidade}")
 
     encerrar(*leitores, editor, *editores)
+    return 1 + len(editores)
+
+
+def teste_armazenamento(arquivo, esperadas):
+    print("\narmazenamento")
+    try:
+        with open(arquivo, encoding="utf-8") as f:
+            registros = [json.loads(linha) for linha in f if linha.strip()]
+    except (OSError, json.JSONDecodeError) as erro:
+        checar("arquivo de noticias pode ser lido", False, erro)
+        return
+
+    checar(f"arquivo tem as {esperadas} noticias publicadas", len(registros) == esperadas,
+           f"{len(registros)} registros")
+    campos = {"ts", "categoria", "titulo", "resumo"}
+    checar("todo registro tem ts, categoria, titulo e resumo",
+           all(set(r) == campos for r in registros))
+    # o acento precisa ficar legivel no arquivo, sem virar ç
+    titulos = [r.get("titulo") for r in registros]
+    checar("acentos gravados corretamente", "Exposição de arte popular no Recife" in titulos)
 
 
 def main():
@@ -266,14 +289,19 @@ def main():
         mostrar_log(log)
         sys.exit(1)
 
+    testes = [teste_conexao, teste_assinaturas, teste_entrega, teste_erros, teste_simultaneos]
+    publicadas = 0
     try:
-        teste_conexao(args.port)
-        teste_assinaturas(args.port)
-        teste_entrega(args.port)
-        teste_erros(args.port)
-        teste_simultaneos(args.port)
+        for teste in testes:
+            # uma excecao conta como falha e nao impede os proximos testes
+            try:
+                publicadas += teste(args.port) or 0
+            except Exception as erro:
+                checar(f"{teste.__name__} rodou ate o fim", False, repr(erro))
     finally:
         derrubar_servidor(servidor)
+
+    teste_armazenamento(arquivo, publicadas)
 
     print(f"\n{acertos} ok, {falhas} falha(s)")
     if falhas:
